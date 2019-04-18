@@ -2,13 +2,20 @@
 #filename: lazy_admin.pl
 #description: preform daily checks on the CM/ECF system and send email to any issues.
 #author - Zeekus
+##! cleaned up a tad afb 4/2019
 
+use strict;
+use warnings;
 use Sys::Hostname; #for host lookups
 use Net::SMTP; #for email
 
 #globals for other courts
-my $mailhost='smtp.server.com'; #mail gateway if required
-my $to_address="myusername\@localhost"; #to be notified address
+my $mailhost='smtp.uscmail.dcn'; #mail gateway if required
+my $to_address='somebody@somewhere'; #to be notified address
+my $from_address='somebody@somewhere'; #from address
+my $server_type = 'inside';
+my $informix_server = 'unit_ecf';
+my $db_name = 'unit_live';
 
 
 sub run_command_and_return_results {
@@ -52,7 +59,7 @@ sub check_ecf_procs {
   ($process_name,$expected_process_count)=split(":",$line);
 
   print "verify_process_exists: count of \'$expected_process_count\'\n";
-  $count = verify_process_exists($process_name);
+  my $count = verify_process_exists($process_name);
   print "count of \'$count\' returned\n";
 
 
@@ -135,7 +142,8 @@ sub check_on_swap {
     }
   }
   return @report;
-  #check to see if the machine is swapping }
+  #check to see if the machine is swapping
+}
 
 sub check_interfaces_for_errors {
   my @interface_check=run_command_and_return_results("ifconfig -a");
@@ -178,7 +186,8 @@ sub check_interfaces_for_errors {
 }
 
 sub email_report {
- my ($mailhost,$from,$to,$warn_count,@report) = @_;  my $host = hostname() or die "unable to get hostname\n"; #my hostname  print "debug email_report got $warn_count\n";
+ my ($mailhost,$from,$to,$warn_count,@report) = @_;
+ my $host = hostname() or die "unable to get hostname\n"; #my hostname  print "debug email_report got $warn_count\n";
 
  my $smtp = Net::SMTP->new($mailhost);
 
@@ -223,22 +232,29 @@ sub informix_query_for_chunk_space {
  $ENV{'INFORMIXSERVER'}=$informix_server;
  $ENV{'PATH'}='$PATH:$INFORMIXDIR/bin:/opt/util:/gov/ecf/bin/';
 
- #create SQL statement to check on the chunks  my @filedata;  my $filename = "/var/tmp/chunk_space.sql";  print "open file\n";  open FILE, ">$filename" or "WARN unable to open file $!\n";  print FILE "database sysmaster\;\n";  print FILE "select name dbspace, sum(chksize) allocated, sum(nfree) free,\n";  print FILE "round(((sum(chksize)-sum(nfree))/sum(chksize))*100) pctused from sysmaster:sysdbspaces d,\n";  print FILE "sysmaster:syschunks c where d.dbsnum = c.dbsnum group by name order by name\;\n";  close FILE;
+ #create SQL statement to check on the chunks
+my @filedata;  my $filename = "/tmp/chunk_space.sql";  #print "open file\n";
+open FILE, ">$filename" or warn("WARN unable to open file $!\n");
+print FILE "database sysmaster\;\n";
+print FILE "select name dbspace, sum(chksize) allocated, sum(nfree) free,\n";
+print FILE "round(((sum(chksize)-sum(nfree))/sum(chksize))*100) pctused from sysmaster:sysdbspaces d,\n";
+print FILE "sysmaster:syschunks c where d.dbsnum = c.dbsnum group by name order by name\;\n";
+close FILE;
 
- #run the SQL statment we just wrote to file  if ( -e $filename ) {
-   open (FILE,"$filename|");
-   open( FILE, $filename ) or warn "can't open the $filename - reason $!\n";
-   @filedata = <FILE>;
-   close(FILE);
-
-   #output SQL lines to screen
-   foreach my $line (@filedata){
-     chomp;
-     print "SQL: $line";
-   }
+ #run the SQL statment we just wrote to file
+if ( -e $filename ) {
+#   open( FILE, $filename ) or warn "can't open the $filename - reason $!\n";
+#   @filedata = <FILE>;
+#   close(FILE);
+#
+#   #output SQL lines to screen
+#   foreach my $line (@filedata){
+#     chomp;
+#     print "SQL: $line";
+#   }
 
    #run the SQL query
-   my $CMD = "/opt/informix/bin/dbaccess $db_name /var/tmp/chunk_space.sql";
+   my $CMD = "/opt/informix/bin/dbaccess $db_name $filename";
    open (RUNSQL,"$CMD|");
    @filedata = <RUNSQL>;
    close(RUNSQL);
@@ -246,7 +262,6 @@ sub informix_query_for_chunk_space {
    my $name;
    my $use;
    foreach my $line (@filedata){
-     chomp;
      if ( $line =~ /dbspace/ ) {
        $name = $line;
        chomp $name;
@@ -272,7 +287,10 @@ sub informix_query_for_chunk_space {
  }
 
  #TO DO onstat checks
- my $ONSTAT="/opt/informix/bin/onstat - ";  open (RUNONSTAT,"$ONSTAT|");  my @filedata = <RUNONSTAT>;  close(RUNONSTAT);
+ my $ONSTAT="/opt/informix/bin/onstat - ";
+ open (RUNONSTAT,"$ONSTAT|");
+ @filedata = <RUNONSTAT>;
+ close(RUNONSTAT);
 
  my $onstat=0; #0 means not in primary mode
 
