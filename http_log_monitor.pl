@@ -14,12 +14,12 @@ use Net::SMTP;        #for email
 ############################################
 
 ############################################
-#globals for UScourts
+#globals for email
 ############################################
 #my $mailhost='cmecf.uscmail.dcn'; #inside ecf servers
-my $mailhost     = 'smtp.uscourts.gov';             #outside      #change this
-my $from_address = "myemail\@mycourt.uscourts.gov";    #change this the sending address
-my $to_address   = "myemail\@mycourt.uscourts.gov";    #chage this to your email address
+my $mailhost     = 'smtp.example.com';             #outside      #change this
+my $from_address = "myemail\@example.com";    #change this the sending address
+my $to_address   = "myemail\@example.com";    #chage this to your email address
 
 sub run_command_and_return_results {
 
