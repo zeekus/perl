@@ -62,10 +62,6 @@ if ( ( $host =~ /.*db\./i) && ( $host !~ /.*web\./) ) {
 foreach (@service) {
   system("/etc/init.d/$_ stop");
   sleep(5);
-"~/cronjobs/restart_services.pl" [readonly] 70L, 1579C
- 
-
-3:15:57 PM:   sleep(5);
   verify_process_died_or_kill_it($_);
 }
 
