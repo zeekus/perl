@@ -11,7 +11,7 @@ open (FH, "journalctl --since "10min ago"|");
 @results = <FH>;
 close FH;
 
-#sadly journalctl doesn't hold he /var/log/htttpd/error.log so this will not work. 
+#sadly journalctl doesn't hold the desired info. It is stored in '/var/log/htttpd/error.log', so this will not work. 
 foreach my $line (@results) {
   if $line =~ /The timeout specified has expired: AH01030: ajp_ilink_receive/ {
      #restart apache
