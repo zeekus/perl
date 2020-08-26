@@ -1,52 +1,19 @@
 #!/usr/bin/perl
 #author: Theodore Knab
 #date: 8/24/2020
-#filename: restart_confluence.pl
-#description: clean up memory problems with confluence 
+#filename: monitor_and_restart_apache.pl
+#description: restart apache when the proxy dies. This is a bandaid solution. A configuration change should prevent this. 
 # a work around for this error/bug:
 # [proxy_ajp:error] [pid 1270:tid 140402329900800] (70007)The timeout specified has expired: AH01030: ajp_ilink_receive() can't receive header
-#
-print "running ... ($0)\n";
+# PYSDO CODE
 
-use Sys::Hostname;
-my $host = hostname() or die "unable to get hostname\n"; #my hostname
-my @services; #services to stop and start
-my @service=("confluence","httpd");
+open (FH, "journalctl --since "10min ago"|");
+@results = <FH>;
+close FH;
 
-sub verify_process_died_or_kill_it {
-  my $process=$_[0];
-  print "looking for $process\n";
-  open (PROC,"ps aux|");
-  my @procs=<PROC>;
-  close PROC;
-  foreach(@procs){
-    chomp;
-    if ( $_=~ /$process/) {
-      #orphan to kill
-      my $prid=(split(/\s+/,$_))[1];
-      if ( $prid > 100 ) {
-        print "forcing kill on orphan for $process using prid of $prid\n";
-        system("kill $prid");
-      }
-    }
+#sadly journalctl doesn't hold he /var/log/htttpd/error.log so this will not work. 
+foreach my $line (@results) {
+  if $line =~ /The timeout specified has expired: AH01030: ajp_ilink_receive/ {
+     #restart apache
   }
-}
-
-
-
-#stop services
-foreach (@service) {
-  print "systemctl stop $_\n";
-  system("systemctl stop $_");
-  #system("/etc/init.d/$_ stop");
-  sleep(5);
-  verify_process_died_or_kill_it($_);
-}
-
-#start services
-foreach(@service) {
-  print "systemctl start $_\n";
-  system("systemctl start $_");
-  #system("/etc/init.d/$_ start");
-  sleep(5);
 }
